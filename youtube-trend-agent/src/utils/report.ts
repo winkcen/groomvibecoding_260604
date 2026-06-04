@@ -13,8 +13,12 @@ export function generateMarkdown(report: TrendReport): string {
 
   const tableRows = report.topVideos
     .map(
-      (v, i) =>
-        `| ${i + 1} | ${v.trendLabel || '-'} | ${v.title.slice(0, 40)}${v.title.length > 40 ? '...' : ''} | ${v.channelTitle} | ${v.viewCount.toLocaleString()} | ${v.velocityScore.toLocaleString()} | ${v.duration} |`
+      (v, i) => {
+        const cleanedTitle = v.title.replace(/\|/g, '\\|');
+        const link = `https://www.youtube.com/watch?v=${v.videoId}`;
+        const thumbnail = `<img src="${v.thumbnailUrl}" width="80" style="border-radius:4px;" />`;
+        return `| ${i + 1} | ${thumbnail} | ${v.trendLabel || '-'} | [${cleanedTitle}](${link}) | ${v.channelTitle} | ${v.viewCount.toLocaleString()} | ${v.velocityScore.toLocaleString()} | ${v.duration} |`;
+      }
     )
     .join('\n');
 
@@ -39,8 +43,8 @@ ${report.trendingSummary}
 
 ## 📊 영상 순위 분석 (Top 10)
 
-| 순위 | 트렌드 | 제목 | 채널 | 조회수 | 시간당 조회수 | 길이 |
-|------|--------|------|------|--------|------------|------|
+| 순위 | 썸네일 | 트렌드 | 제목 (링크 클릭) | 채널 | 조회수 | 시간당 조회수 | 길이 |
+|------|--------|--------|-----------------|------|--------|------------|------|
 ${tableRows}
 
 ---
