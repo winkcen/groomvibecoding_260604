@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube 트렌드 리서치 에이전트</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e8e8e8;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header .logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ff4444;
+    }
+
+    header .subtitle {
+      font-size: 13px;
+      color: #888;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .search-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 32px;
+    }
+
+    .search-card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #ccc;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      color: #888;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"], select {
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #e8e8e8;
+      padding: 10px 14px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"] { width: 340px; }
+
+    input[type="text"]:focus, select:focus {
+      border-color: #ff4444;
+    }
+
+    select option { background: #1a1a1a; }
+
+    button[type="submit"] {
+      background: #ff4444;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      align-self: flex-end;
+      white-space: nowrap;
+    }
+
+    button[type="submit"]:hover { background: #e03333; }
+    button[type="submit"]:disabled { background: #555; cursor: not-allowed; }
+
+    /* Progress */
+    #progress-section {
+      display: none;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #333;
+      border-top-color: #ff4444;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .progress-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #ccc;
+    }
+
+    .progress-log {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .progress-log li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .step-badge {
+      background: #2a2a2a;
+      color: #ff4444;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .step-badge.done { background: #1a3a1a; color: #4caf50; }
+
+    .step-msg { color: #aaa; line-height: 1.4; }
+
+    /* Result */
+    #result-section {
+      display: none;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #333;
+      color: #aaa;
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover { border-color: #666; color: #ccc; }
+
+    .report-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 32px;
+    }
+
+    /* Markdown styles */
+    .report-card h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #f0f0f0;
+    }
+
+    .report-card h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 28px 0 12px;
+      color: #e0e0e0;
+      border-bottom: 1px solid #2a2a2a;
+      padding-bottom: 8px;
+    }
+
+    .report-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 20px 0 8px;
+      color: #ccc;
+    }
+
+    .report-card p {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #bbb;
+      margin-bottom: 10px;
+    }
+
+    .report-card ul, .report-card ol {
+      padding-left: 20px;
+      margin-bottom: 10px;
+    }
+
+    .report-card li {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #bbb;
+    }
+
+    .report-card strong { color: #e0e0e0; }
+
+    .report-card table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 12px 0;
+      overflow-x: auto;
+      display: block;
+    }
+
+    .report-card th {
+      background: #222;
+      color: #aaa;
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid #333;
+      white-space: nowrap;
+    }
+
+    .report-card td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #222;
+      color: #bbb;
+    }
+
+    .report-card tr:hover td { background: #1f1f1f; }
+
+    .report-card hr {
+      border: none;
+      border-top: 1px solid #2a2a2a;
+      margin: 24px 0;
+    }
+
+    .report-card code {
+      background: #222;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #ff9944;
+    }
+
+    .report-card blockquote {
+      border-left: 3px solid #ff4444;
+      padding-left: 16px;
+      color: #999;
+      font-style: italic;
+      margin: 12px 0;
+    }
+
+    #error-msg {
+      display: none;
+      background: #2a1010;
+      border: 1px solid #663333;
+      border-radius: 8px;
+      padding: 16px 20px;
+      color: #ff8888;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+      input[type="text"] { width: 100%; }
+      .form-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">▶ YouTube 트렌드 에이전트</div>
+    <div class="subtitle">GPT-4o 기반 다중 에이전트 트렌드 리서치</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="search-card">
+    <h2>트렌드 분석 시작</h2>
+    <form id="searchForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label>키워드</label>
+          <input type="text" id="keyword" placeholder="예: AI 뉴스, ChatGPT, 주식" required />
+        </div>
+        <div class="form-group">
+          <label>분석 기간</label>
+          <select id="days">
+            <option value="7">최근 7일</option>
+            <option value="14">최근 14일</option>
+            <option value="30">최근 30일</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>수집 영상 수</label>
+          <select id="maxResults">
+            <option value="20">20개</option>
+            <option value="30">30개</option>
+            <option value="50">50개</option>
+          </select>
+        </div>
+        <button type="submit" id="submitBtn">분석 시작</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="error-msg"></div>
+
+  <div id="progress-section">
+    <div class="progress-header">
+      <div class="spinner" id="spinner"></div>
+      <div class="progress-title" id="progress-title">에이전트 실행 중...</div>
+    </div>
+    <ul class="progress-log" id="progress-log"></ul>
+  </div>
+
+  <div id="result-section">
+    <div class="result-actions">
+      <button class="btn-secondary" id="downloadBtn">Markdown 다운로드</button>
+      <button class="btn-secondary" id="copyBtn">클립보드 복사</button>
+      <button class="btn-secondary" id="resetBtn">새로 분석</button>
+    </div>
+    <div class="report-card" id="report-content"></div>
+  </div>
+
+</div>
+
+<script>
+  let currentMarkdown = '';
+
+  const form = document.getElementById('searchForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const progressSection = document.getElementById('progress-section');
+  const progressLog = document.getElementById('progress-log');
+  const progressTitle = document.getElementById('progress-title');
+  const spinner = document.getElementById('spinner');
+  const resultSection = document.getElementById('result-section');
+  const reportContent = document.getElementById('report-content');
+  const errorMsg = document.getElementById('error-msg');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    runAnalysis();
+  });
+
+  function runAnalysis() {
+    const keyword = document.getElementById('keyword').value.trim();
+    const days = document.getElementById('days').value;
+    const maxResults = document.getElementById('maxResults').value;
+
+    if (!keyword) return;
+
+    // Reset UI
+    submitBtn.disabled = true;
+    submitBtn.textContent = '분석 중...';
+    progressSection.style.display = 'block';
+    resultSection.style.display = 'none';
+    errorMsg.style.display = 'none';
+    progressLog.innerHTML = '';
+    progressTitle.textContent = '에이전트 실행 중...';
+    spinner.style.display = 'block';
+
+    const url = `/api/analyze/stream?keyword=${encodeURIComponent(keyword)}&days=${days}&maxResults=${maxResults}`;
+    const evtSource = new EventSource(url);
+
+    evtSource.addEventListener('progress', (e) => {
+      const { step, message } = JSON.parse(e.data);
+      addProgressItem(step, message, false);
+      progressTitle.textContent = `[${step}] ${message}`;
+    });
+
+    evtSource.addEventListener('done', (e) => {
+      const { markdown } = JSON.parse(e.data);
+      currentMarkdown = markdown;
+
+      // Mark last progress item as done
+      const items = progressLog.querySelectorAll('.step-badge');
+      items.forEach(el => el.classList.add('done'));
+
+      spinner.style.display = 'none';
+      progressTitle.textContent = '분석 완료!';
+
+      reportContent.innerHTML = marked.parse(markdown);
+      resultSection.style.display = 'block';
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = '분석 시작';
+      evtSource.close();
+    });
+
+    evtSource.addEventListener('error', (e) => {
+      let message = '분석 중 오류가 발생했습니다.';
+      try { message = JSON.parse(e.data).message; } catch {}
+      showError(message);
+      evtSource.close();
+      submitBtn.disabled = false;
+      submitBtn.textContent = '분석 시작';
+      spinner.style.display = 'none';
+    });
+
+    evtSource.onerror = () => {
+      if (evtSource.readyState === EventSource.CLOSED) return;
+      showError('서버 연결이 끊어졌습니다.');
+      evtSource.close();
+      submitBtn.disabled = false;
+      submitBtn.textContent = '분석 시작';
+      spinner.style.display = 'none';
+    };
+  }
+
+  function addProgressItem(step, message, done) {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <span class="step-badge${done ? ' done' : ''}">${step}</span>
+      <span class="step-msg">${message}</span>
+    `;
+    progressLog.appendChild(li);
+    li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function showError(msg) {
+    errorMsg.textContent = '오류: ' + msg;
+    errorMsg.style.display = 'block';
+    progressSection.style.display = 'none';
+  }
+
+  document.getElementById('downloadBtn').addEventListener('click', () => {
+    const keyword = document.getElementById('keyword').value.trim();
+    const blob = new Blob([currentMarkdown], { type: 'text/markdown;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `trend-${keyword}-${new Date().toISOString().slice(0,10)}.md`;
+    a.click();
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    await navigator.clipboard.writeText(currentMarkdown);
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '복사됨!';
+    setTimeout(() => btn.textContent = '클립보드 복사', 2000);
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    resultSection.style.display = 'none';
+    progressSection.style.display = 'none';
+    document.getElementById('keyword').focus();
+  });
+</script>
+
+</body>
+</html>
