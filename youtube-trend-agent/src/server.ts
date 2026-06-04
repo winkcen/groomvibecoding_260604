@@ -17,11 +17,17 @@ const reportsFilePath = path.join(__dirname, '..', 'data', 'reports.json');
 const ADMIN_EMAIL = 'naebon1@gmail.com';
 const ADMIN_TOKEN = 'youtube-trend-admin-token-2026';
 
+let memoryReports: any[] = [];
+
 function readReports(): any[] {
+  if (memoryReports.length > 0) {
+    return memoryReports;
+  }
   try {
     if (fs.existsSync(reportsFilePath)) {
       const content = fs.readFileSync(reportsFilePath, 'utf-8');
-      return JSON.parse(content);
+      memoryReports = JSON.parse(content);
+      return memoryReports;
     }
   } catch (err) {
     console.error('Error reading reports file:', err);
@@ -30,15 +36,16 @@ function readReports(): any[] {
 }
 
 function saveReportToList(report: any) {
+  const reports = readReports();
+  // 동일 키워드의 기존 리포트 제거 (대소문자 구분 없이)
+  const filtered = reports.filter(
+    (r) => r.keyword.toLowerCase().trim() !== report.keyword.toLowerCase().trim()
+  );
+  // 최신 리포트를 가장 앞에 추가
+  filtered.unshift(report);
+  memoryReports = filtered; // 항상 인메모리 리스트 최신화
+  
   try {
-    const reports = readReports();
-    // 동일 키워드의 기존 리포트 제거 (대소문자 구분 없이)
-    const filtered = reports.filter(
-      (r) => r.keyword.toLowerCase().trim() !== report.keyword.toLowerCase().trim()
-    );
-    // 최신 리포트를 가장 앞에 추가
-    filtered.unshift(report);
-    
     // data 디렉토리 존재 확인
     const dir = path.dirname(reportsFilePath);
     if (!fs.existsSync(dir)) {
@@ -46,8 +53,8 @@ function saveReportToList(report: any) {
     }
     
     fs.writeFileSync(reportsFilePath, JSON.stringify(filtered, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing report file:', err);
+  } catch (err: any) {
+    console.warn('ReadOnly Filesystem Warning (Vercel): Saved in-memory instead of reports.json.', err.message);
   }
 }
 
@@ -116,9 +123,13 @@ app.get('/api/analyze/stream', async (req: Request, res: Response) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`\n========================================`);
-  console.log(` YouTube 트렌드 리서치 에이전트`);
-  console.log(` 서버 실행 중: http://localhost:${PORT}`);
-  console.log(`========================================\n`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`\n========================================`);
+    console.log(` YouTube 트렌드 리서치 에이전트`);
+    console.log(` 서버 실행 중: http://localhost:${PORT}`);
+    console.log(`========================================\n`);
+  });
+}
+
+export default app;

@@ -1328,10 +1328,31 @@
     async function loadReports() {
       try {
         const response = await fetch('/api/reports');
+        let serverReports = [];
         if (response.ok) {
-          reports = await response.json();
-          renderGrid();
+          serverReports = await response.json();
         }
+
+        // Load local reports from localStorage
+        const localReports = JSON.parse(localStorage.getItem('yt_generated_reports') || '[]');
+
+        // Merge server and local reports by matching keyword (prefer local if newer or unique)
+        const mergedMap = new Map();
+
+        // First add server reports
+        serverReports.forEach(r => {
+          mergedMap.set(r.keyword.toLowerCase().trim(), r);
+        });
+
+        // Then add local reports (they might be newer or user-specific)
+        localReports.forEach(r => {
+          mergedMap.set(r.keyword.toLowerCase().trim(), r);
+        });
+
+        // Convert map back to array and sort by generatedAt desc
+        reports = Array.from(mergedMap.values()).sort((a, b) => new Date(b.generatedAt) - new Date(a.generatedAt));
+
+        renderGrid();
       } catch (err) {
         console.error('Error fetching reports:', err);
       }
@@ -1668,6 +1689,12 @@
         addLoaderLog('완료', '리포트 저장 및 로드 완료!', true);
         
         evtSource.close();
+        
+        // Save the newly generated report to local reports database
+        const localReports = JSON.parse(localStorage.getItem('yt_generated_reports') || '[]');
+        const filtered = localReports.filter(r => r.keyword.toLowerCase().trim() !== report.keyword.toLowerCase().trim());
+        filtered.unshift(report);
+        localStorage.setItem('yt_generated_reports', JSON.stringify(filtered));
         
         setTimeout(async () => {
           loader.style.display = 'none';
