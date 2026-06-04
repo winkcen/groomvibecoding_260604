@@ -1148,6 +1148,14 @@
           로그인
         </button>
       </form>
+      <div style="display: flex; align-items: center; margin: 20px 0; color: var(--text-muted); font-size: 12px;">
+        <span style="flex: 1; height: 1px; background: rgba(255,255,255,0.08);"></span>
+        <span style="padding: 0 10px;">또는</span>
+        <span style="flex: 1; height: 1px; background: rgba(255,255,255,0.08);"></span>
+      </div>
+      <button type="button" class="btn" style="width: 100%; padding: 12px; border-radius: 12px; justify-content: center; background: #ffffff; color: #1c1c1e; font-weight: 600; border: none; margin-top: 0;" onclick="location.href='/api/auth/google'">
+        <i class="fa-brands fa-google" style="color: #4285F4; font-size: 15px;"></i> Google 계정으로 로그인
+      </button>
     </div>
   </div>
 
@@ -1246,6 +1254,7 @@
 
     // On Load
     window.addEventListener('DOMContentLoaded', () => {
+      handleOAuthRedirect();
       checkLoginStatus();
       loadReports();
     });
@@ -1260,17 +1269,61 @@
       }, 3000);
     }
 
+    // Google OAuth Redirect Handler
+    function handleOAuthRedirect() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const email = params.get('email');
+      const role = params.get('role');
+      const name = params.get('name');
+
+      if (token && email && role) {
+        localStorage.setItem('adminToken', token);
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userRole', role);
+        if (name) localStorage.setItem('userName', name);
+
+        // URL 클린업
+        window.history.replaceState(null, '', window.location.pathname);
+        showToast(`${email} 계정으로 로그인되었습니다.`);
+      }
+
+      const error = params.get('error');
+      if (error) {
+        window.history.replaceState(null, '', window.location.pathname);
+        if (error === 'google_auth_failed') {
+          alert('구글 로그인에 실패했습니다.');
+        } else if (error === 'invalid_state') {
+          alert('보안 인증 토큰이 올바르지 않습니다.');
+        } else {
+          alert('로그인 중 오류가 발생했습니다.');
+        }
+      }
+    }
+
     // Login checks
     function checkLoginStatus() {
       const token = localStorage.getItem('adminToken');
+      const role = localStorage.getItem('userRole') || 'admin';
+      const email = localStorage.getItem('userEmail') || '';
+      
       const loginBtn = document.getElementById('loginBtn');
       const logoutBtn = document.getElementById('logoutBtn');
       const adminPanel = document.getElementById('adminPanel');
 
       if (token) {
         loginBtn.style.display = 'none';
+        
+        const displayLabel = email ? `${email.split('@')[0]} (${role === 'admin' ? '어드민' : '독자'})` : '로그아웃';
+        logoutBtn.innerHTML = `<i class="fa-solid fa-arrow-right-from-bracket"></i> ${displayLabel}`;
         logoutBtn.style.display = 'flex';
-        adminPanel.style.display = 'block';
+        
+        // 어드민 역할만 분석 패널 노출
+        if (role === 'admin') {
+          adminPanel.style.display = 'block';
+        } else {
+          adminPanel.style.display = 'none';
+        }
       } else {
         loginBtn.style.display = 'flex';
         logoutBtn.style.display = 'none';
@@ -1305,6 +1358,9 @@
 
         if (response.ok && data.success) {
           localStorage.setItem('adminToken', data.token);
+          localStorage.setItem('userEmail', data.email);
+          localStorage.setItem('userRole', data.role);
+          
           closeLoginModal();
           checkLoginStatus();
           showToast('성공적으로 로그인되었습니다.');
@@ -1320,6 +1376,9 @@
     // Admin Logout
     function handleLogout() {
       localStorage.removeItem('adminToken');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userName');
       checkLoginStatus();
       showToast('로그아웃되었습니다.');
     }
